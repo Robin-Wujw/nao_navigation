@@ -1,0 +1,158 @@
+<?xml version="1.0"?>
+<!-- -->
+<launch>
+<!-- To start a map server 
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/robin/catkin_ws/src/nao_navigation/maps/tiny_map.yaml"/> -->
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/robin/map.yaml"/>
+
+<!-- To start a local Bringup node on computer instead of NAO  -->
+<include file="$(find nao_bringup)/launch/nao_full_py.launch">
+<arg name="nao_ip" default="192.168.1.109"/>
+</include>
+  <!-- rviz for visulization -->
+    <node pkg="tf" type="static_transform_publisher" name="base_to_camera"
+args="0 0 0.2 0 0 0 /base_link /camera_link 100"/>
+<node pkg="rviz" type="rviz" name="rviz" args="-d /home/robin/rviz_amcl.rviz"/>
+
+  <include file="$(find openni_launch)/launch/openni.launch">
+    <arg name="depth_registration" value="true"/>
+  </include>
+<!-- Kinect cloud to laser scan -->
+    <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan">
+      <remap from="image"     to="/camera/depth_registered/image_raw"/>
+      <remap from="camera_info" to="/camera/depth_registered/camera_info"/>
+      <remap from="scan" to="/kinect_scan"/>
+      <param name="range_max" type="double" value="4"/>
+    </node>
+
+  <!-- SLAM -->
+  <group ns="rtabmap">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+          <param name="frame_id" type="string" value="base_footprint"/>
+          <param name="Grid/FromDepth" type="string" value="true"/>
+          <param name="subscribe_depth" type="bool" value="true"/>
+          <param name="subscribe_scan" type="bool" value="true"/>
+          <param name="localization"    value="true"/>
+          <param name="visual_odometry" value="false"/>
+          <remap from="odom" to="/odom"/>
+          <remap from="scan" to="/kinect_scan"/>
+
+          <remap from="rgb/image" to="/camera/rgb/image_rect_color"/>
+          <remap from="depth/image" to="/camera/depth_registered/image_raw"/>
+          <remap from="rgb/camera_info" to="/camera/rgb/camera_info"/>
+
+          <param name="queue_size" type="int" value="10"/>
+          
+          <!-- RTAB-Map's parameters -->
+          <param name="RGBD/ProximityBySpace"     type="string" value="false"/>
+          <param name="RGBD/AngularUpdate"        type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate"         type="string" value="0.01"/>
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="false"/>
+          <param name="Reg/Force3DoF"             type="string" value="true"/>
+          <param name="Vis/MinInliers"            type="string" value="12"/>
+    </node>
+  </group>
+ <!-- <node name="nao_path_follower" pkg="nao_path_follower" type="nao_path_follower"/>-->
+
+  <!-- AMCL NODE--> 
+  <node pkg="amcl" type="amcl" name="amcl" clear_params="true">
+  
+  <!-- OVERALL FILTER PARAMETERS -->
+  <param name="min_particles" value="1000"/>
+  <param name="max_particles" value="5000"/>
+  <param name="kld_err" value="0.05"/>
+  <param name="kld_z" value="0.99"/>
+  <param name="update_min_d" value="0.2"/>
+  <param name="update_min_a" value="0.5"/>
+  <param name="resample_interval" value="2"/>
+  <param name="transform_tolerance" value="0.1"/>
+  <param name="recovery_alpha_slow" value="0.0"/>
+  <param name="recovery_alpha_fast" value="0.0"/>
+  <param name="initial_pose_x" value="0.0"/>
+  <param name="initial_pose_y" value="0.0"/>
+  <param name="initial_pose_a" value="0.0"/>
+  <param name="initial_cov_xx" value="0.025"/>
+  <param name="initial_cov_yy" value="0.025"/>
+  <param name="initial_cov_aa" value="0.06854"/>
+  <param name="gui_publish_rate" value="1.0"/>
+  <param name="save_pose_rate" value="0.5"/>
+  <param name="use_map_topic" value="false"/>
+  <param name="first_map_only" value="false"/>
+  
+  <!-- LASER MODEL PARAMETERS -->
+  <!-- Note that whichever mixture weights are in use should sum to 1. 
+  The beam model uses all 4: z_hit, z_short, z_max, and z_rand. The 
+  likelihood_field model uses only 2: z_hit and z_rand. -->
+
+  <param name="laser_min_range" value="0.1"/>
+  <param name="laser_max_range" value="5.5"/>
+  <param name="laser_max_beams" value="400"/>
+  <param name="laser_z_hit" value="0.5"/>
+  <param name="laser_z_short" value="0.05"/>
+  <param name="laser_z_max" value="0.05"/>
+  <param name="laser_z_rand" value="0.5"/>
+  <param name="laser_sigma_hit" value="0.2"/>
+  <param name="laser_lambda_short" value="0.1"/>
+  <param name="laser_likelihood_max_dist" value="2.0"/>
+  <param name="laser_model_type" value="likelihood_field"/>
+  <!-- <param name="laser_model_type" value="beam"/> -->
+  <!-- <param name="laser_model_type" value="likelihood_field_prob"/> -->
+
+  <!-- ODOMETRY MODEL PARAMETERS -->
+  <!-- The fifth parameter capture the tendency of the robot to translate (without 
+  rotating) perpendicular to the observed direction of travel. -->
+
+  <param name="odom_model_type" value="omni"/>
+  <param name="odom_alpha1" value="2.0"/>
+  <param name="odom_alpha2" value="0.1"/>
+  <param name="odom_alpha3" value="2.0"/>
+  <param name="odom_alpha4" value="0.05"/>
+  <param name="odom_alpha5" value="0.01"/>
+  <param name="odom_frame_id" value="odom"/>
+  <param name="base_frame_id" value="base_link"/>
+  <param name="global_frame_id" value="map"/>
+  <!-- <remap from="scan" to="scan"/> -->
+  <param name="tf_broadcast" value="true"/>
+  </node>
+    <!-- To start move_base -->
+
+
+       <group ns="planner">
+      <remap from="openni_points" to="/planner_cloud"/>
+      <remap from="map" to="/rtabmap/proj_map"/>
+      <remap from="move_base_simple/goal" to="/planner_goal"/>
+        
+      <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+         <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/costmap_common_params1.yaml" command="load" ns="global_costmap" />
+      <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/costmap_common_params1.yaml" command="load" ns="local_costmap" />
+         <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/local_costmap_params1.yaml" command="load" />
+         <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/global_costmap_params1.yaml" command="load" />
+         <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/base_local_planner_params1.yaml" command="load" />
+         <remap from="/map" to="/rtabmap/grid_map"/>
+      </node>
+   </group>
+      <group ns="/kinect_camera" >
+      
+      <!-- Generate a point cloud from the disparity image -->
+      <node pkg="nodelet" type="nodelet" name="disparity2cloud" args="load rtabmap_ros/point_cloud_xyz kinect_nodelet">
+         <remap from="disparity/image"       to="disparity"/>
+         <remap from="disparity/camera_info" to="right/camera_info_throttle"/>
+         <remap from="cloud"                to="cloudXYZ"/>
+         
+         <param name="voxel_size" type="double" value="0.05"/>
+         <param name="decimation" type="int" value="4"/>
+         <param name="max_depth" type="double" value="4"/>
+      </node>
+
+      <!-- Create point cloud for the local planner -->
+      <node pkg="nodelet" type="nodelet" name="obstacles_detection" args="load rtabmap_ros/obstacles_detection kinect_nodelet">
+         <remap from="cloud" to="cloudXYZ"/>
+         <remap from="obstacles" to="/planner_cloud"/>
+
+         <param name="frame_id" type="string" value="base_footprint"/>
+         <param name="map_frame_id" type="string" value="map"/>
+         <param name="min_cluster_size" type="int" value="20"/>
+         <param name="max_obstacles_height" type="double" value="0.0"/>
+       </node>
+   </group>
+</launch>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+
+<!-- authored by Jerry Hu from Win Win Industrial ltd.
+this launch file remotely starts a rplidar node on NAO robot, and use it for gmapping slam --> 
+
+<launch>
+  <include file="$(find openni_launch)/launch/openni.launch">
+    <arg name="depth_registration" value="true"/>
+  </include>
+
+  <!-- gmapping node and its one million parameters -->
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+  </node>
+    <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan">
+      <remap from="image"     to="/camera/depth_registered/image_raw"/>
+      <remap from="camera_info" to="/camera/depth_registered/camera_info"/>
+      <remap from="scan" to="/kinect_scan"/>
+      <param name="range_max" type="double" value="4"/>
+    </node>
+  <!-- To remotely start a rplidar node on NAO robot-->
+
+  <!-- To start a local Bringup node on computer instead of NAO  -->
+ <!-- To start a local Bringup node on computer instead of NAO  -->
+<include file="$(find nao_bringup)/launch/nao_full_py.launch">
+<arg name="nao_ip" default="192.168.1.109"/>
+</include>
+  <!-- rviz for visulization -->
+    <node pkg="tf" type="static_transform_publisher" name="base_to_camera"
+args="0 0 0.2 0 0 0 /base_link /camera_link 100"/>
+
+  <!-- To start a map saver -->
+  <node name="map_server" pkg="map_server" type="map_saver" />
+
+ 
+  <!-- TF starts here ... -->
+  <!-- <node pkg="tf" type="static_transform_publisher" name="link2_broadcaster" args="0 0 0 0 0 0 odom base_link 100"/> -->
+  <!-- For fake localization we need static transform between /odom and /map -->
+  <!-- <node pkg="tf" type="static_transform_publisher" name="map_odom_broadcaster" args="0 0 0 0 0 0 /map /odom 100" /> -->
+
+  <!-- rviz for visulization -->
+  <node pkg="rviz" type="rviz" name="rviz" args="-d /home/robin/rviz.rviz"/>
+
+</launch>
+

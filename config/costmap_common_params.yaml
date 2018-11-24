@@ -1,0 +1,32 @@
+origin_z: 0.0
+z_resolution: .1
+z_voxels: 7
+footprint: [[0.205, 0.205], [-0.205, 0.2050], [-0.2050, -0.2050], [0.2050, -0.2050]]
+inflation_radius: 0.3
+#Obstacle marking parameters
+track_unknown_space: true
+origin_x: -5.0
+origin_y: -5.0
+obstacle_layer:
+  obstacle_range: 2.5
+  raytrace_range: 3.0
+  max_obstacle_height: 2.0
+  min_obstacle_height: 0.0
+  track_unknown_space: true
+
+inflation_layer:
+  enabled: true
+  cost_scaling_factor: 5.0
+  inflation_radius: 0.36
+ 
+static_layer:
+  enabled: true
+observation_sources: laser_scan_sensor  
+
+laser_scan_sensor: {
+    data_type: LaserScan,
+    topic: /kinect_scan,
+    expected_update_rate: 0.10,
+    marking: true,
+    clearing: true,
+    }

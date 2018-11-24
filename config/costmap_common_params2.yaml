@@ -1,0 +1,26 @@
+footprint: [[ 0.3,  0.3], [-0.3,  0.3], [-0.3, -0.3], [ 0.3, -0.3]]
+footprint_padding: 0.02
+inflation_layer:
+  inflation_radius: 0.3
+transform_tolerance: 2
+
+obstacle_layer:
+  obstacle_range: 4.0
+  raytrace_range: 3.0
+  max_obstacle_height: 0.70
+  track_unknown_space: true
+  z_voxels:         3
+  origin_x: -2.0
+  origin_y: -2.0
+
+  observation_sources: laser_scan_sensor
+
+  laser_scan_sensor: {
+    data_type: LaserScan,
+    topic: /kinect_scan,
+    expected_update_rate: 0.1,
+    marking: true,
+    clearing: true,
+    }
+
+

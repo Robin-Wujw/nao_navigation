@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+
+<!-- -->
+
+<launch>
+<!-- To start a map server 
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/robin/catkin_ws/src/nao_navigation/maps/tiny_map.yaml"/> -->
+
+
+<!-- To start a local Bringup node on computer instead of NAO  -->
+<include file="$(find nao_bringup)/launch/nao_full_py.launch">
+<arg name="nao_ip" default="192.168.1.109"/>
+</include>
+  <!-- rviz for visulization -->
+    <node pkg="tf" type="static_transform_publisher" name="base_to_camera"
+args="0 0 0.2 0 0 0 /base_footprint /camera_link 100"/>
+
+<node pkg="rviz" type="rviz" name="rviz" args="-d /home/robin/rviz_fake.rviz"/>
+
+  <include file="$(find openni_launch)/launch/openni.launch">
+    <arg name="depth_registration" value="true"/>
+  </include>
+  <!-- Kinect cloud to laser scan -->
+    <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan">
+      <remap from="image"     to="/camera/depth_registered/image_raw"/>
+      <remap from="camera_info" to="/camera/depth_registered/camera_info"/>
+      <remap from="scan" to="/kinect_scan"/>
+      <param name="range_max" type="double" value="4"/>
+    </node>
+
+  <!-- SLAM -->
+  <group ns="rtabmap">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+          <param name="frame_id" type="string" value="base_footprint"/>
+
+          <param name="subscribe_depth" type="bool" value="true"/>
+          <param name="subscribe_scan" type="bool" value="true"/>
+
+          <remap from="odom" to="/odom"/>
+          <remap from="scan" to="/kinect_scan"/>
+
+          <remap from="rgb/image" to="/camera/rgb/image_rect_color"/>
+          <remap from="depth/image" to="/camera/depth_registered/image_raw"/>
+          <remap from="rgb/camera_info" to="/camera/rgb/camera_info"/>
+
+          <param name="queue_size" type="int" value="10"/>
+          
+          <!-- RTAB-Map's parameters -->
+          <param name="RGBD/ProximityBySpace"     type="string" value="false"/>
+          <param name="RGBD/AngularUpdate"        type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate"         type="string" value="0.01"/>
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="false"/>
+          <param name="Reg/Force3DoF"             type="string" value="true"/>
+          <param name="Vis/MinInliers"            type="string" value="12"/>
+    </node>
+  </group>
+</launch>

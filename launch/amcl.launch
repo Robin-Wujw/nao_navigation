@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+<!-- -->
+<launch>
+<!-- To start a map server 
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/robin/catkin_ws/src/nao_navigation/maps/tiny_map.yaml"/> -->
+  <node name="map_server" pkg="map_server" type="map_server" args="/home/robin/map.yaml"/>
+
+<!-- To start a local Bringup node on computer instead of NAO  -->
+<include file="$(find nao_bringup)/launch/nao_full_py.launch">
+<arg name="nao_ip" default="192.168.1.109"/>
+</include>
+  <!-- rviz for visulization -->
+    <node pkg="tf" type="static_transform_publisher" name="base_to_camera"
+args="0 0 0.2 0 0 0 /base_link /camera_link 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="odom_to_map"
+args="0 0 0 0 0 0 /map /odom 100"/>
+
+<node pkg="rviz" type="rviz" name="rviz" args="-d /home/robin/rviz_amcl.rviz"/>
+  <include file="$(find nao_navigation)/launch/amcll.launch"/>
+  <include file="$(find openni_launch)/launch/openni.launch">
+    <arg name="depth_registration" value="true"/>
+  </include>
+<!-- Kinect cloud to laser scan -->
+    <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan">
+      <remap from="image"     to="/camera/depth_registered/image_raw"/>
+      <remap from="camera_info" to="/camera/depth_registered/camera_info"/>
+      <remap from="scan" to="/kinect_scan"/>
+      <param name="range_max" type="double" value="4"/>
+    </node>
+
+  <!-- SLAM -->
+  <group ns="rtabmap">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+          <param name="frame_id" type="string" value="base_footprint"/>
+          <param name="Grid/FromDepth" type="string" value="true"/>
+          <param name="subscribe_depth" type="bool" value="true"/>
+          <param name="subscribe_scan" type="bool" value="true"/>
+          <param name="localization"    value="false"/>
+          <param name="visual_odometry" value="true"/>
+          <remap from="odom" to="/odom"/>
+          <remap from="scan" to="/kinect_scan"/>
+
+          <remap from="rgb/image" to="/camera/rgb/image_rect_color"/>
+          <remap from="depth/image" to="/camera/depth_registered/image_raw"/>
+          <remap from="rgb/camera_info" to="/camera/rgb/camera_info"/>
+
+          <param name="queue_size" type="int" value="10"/>
+          
+          <!-- RTAB-Map's parameters -->
+          <param name="RGBD/ProximityBySpace"     type="string" value="false"/>
+          <param name="RGBD/AngularUpdate"        type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate"         type="string" value="0.01"/>
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="false"/>
+          <param name="Reg/Force3DoF"             type="string" value="true"/>
+          <param name="Vis/MinInliers"            type="string" value="12"/>
+    </node>
+  </group>
+ <!-- <node name="nao_path_follower" pkg="nao_path_follower" type="nao_path_follower"/>-->
+     <group ns="planner">
+      <remap from="map" to="/map"/>
+      <remap from="move_base_simple/goal" to="/planner_goal"/>
+    <!-- To start move_base -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" clear_params="true" output="screen">
+    <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/local_costmap_params.yaml" command="load"  />
+    <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/global_costmap_params.yaml" command="load"  />
+    <rosparam file="/opt/ros/kinetic/share/nao_navigation/config/base_local_planner_params.yaml" command="load" />	
+  </node>	
+<group ns="camera">
+   <!-- Attaching to nodelet manager from OpenNI: camera_nodelet_manager -->
+   <!-- use topics from data_throttle at lower frame rate -->
+   <node pkg="nodelet" type="nodelet" name="points_xyz_planner" args="load rtabmap_ros/point_cloud_xyz camera_nodelet_manager">
+      <remap from="depth/image"            to="depth_registered/image_raw_throttle"/>
+      <remap from="depth/camera_info"      to="rgb/camera_info_throttle"/>
+      <remap from="cloud"                  to="cloudXYZ" />
+      <param name="decimation" type="int" value="1"/>                     <!-- already decimated in data_throttle above -->
+      <param name="max_depth" type="double" value="3.0"/>
+      <param name="voxel_size" type="double" value="0.02"/>
+    </node>
+  
+    <node pkg="nodelet" type="nodelet" name="obstacles_detection" args="load rtabmap_ros/obstacles_detection camera_nodelet_manager">
+      <remap from="cloud" to="cloudXYZ"/>
+      <remap from="obstacles" to="/obstacles_cloud"/> <!-- move_base topic -->
+      <remap from="ground"    to="/ground_cloud"/>    <!-- move_base topic -->
+
+      <param name="frame_id" type="string" value="base_footprint"/>   
+      <param name="map_frame_id" type="string" value="map"/>
+      <param name="wait_for_transform" type="bool" value="true"/>
+      <param name="min_cluster_size" type="int" value="20"/>
+      <param name="max_obstacles_height" type="double" value="0.4"/>
+    </node>  
+</group>
+</group>
+</launch>
